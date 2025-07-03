@@ -1,9 +1,14 @@
 use anyhow::{Context, Result};
+use std::cmp::Ordering;
 use std::fs;
 use std::path::{Path, PathBuf};
-use toml_edit::DocumentMut;
+use std::sync::LazyLock;
+use toml_edit::{Array, DocumentMut, Key};
 
 use crate::config::*;
+
+static REPLACE_KEY_VER: LazyLock<Key> = LazyLock::new(|| Key::new("version"));
+static REPLACE_KEY_DYN: LazyLock<Key> = LazyLock::new(|| Key::new("dynamic"));
 
 // UV init specific functions
 fn find_pyproject_files<P: AsRef<Path>>(root_dir: P, skip_dirs: &[String]) -> Result<Vec<PathBuf>> {
@@ -75,11 +80,19 @@ fn modify_pyproject_toml<P: AsRef<Path>>(file_path: P, config: &UvinitConfig) ->
     if config.enable_dynamic_version {
         if let Some(project) = doc.get_mut("project") {
             if let Some(project_table) = project.as_table_mut() {
-                project_table.remove("version");
-
-                let mut dynamic_array = toml_edit::Array::new();
+                let mut dynamic_array = Array::new();
                 dynamic_array.push("version");
                 project_table.insert("dynamic", toml_edit::value(dynamic_array));
+
+                project_table.sort_values_by(|key1, _, key2, _| {
+                    if key1 == &*REPLACE_KEY_DYN && key2 != &*REPLACE_KEY_VER {
+                        Ordering::Less
+                    } else {
+                        Ordering::Equal
+                    }
+                });
+
+                project_table.remove("version");
             }
         }
     }
@@ -100,7 +113,7 @@ fn modify_pyproject_toml<P: AsRef<Path>>(file_path: P, config: &UvinitConfig) ->
             if let Some(build_system_table) = build_system.as_table_mut() {
                 let requires = build_system_table
                     .entry("requires")
-                    .or_insert(toml_edit::value(toml_edit::Array::new()));
+                    .or_insert(toml_edit::value(Array::new()));
 
                 if let Some(requires_array) = requires.as_array_mut() {
                     for req in requires_to_add {
@@ -118,24 +131,26 @@ fn modify_pyproject_toml<P: AsRef<Path>>(file_path: P, config: &UvinitConfig) ->
     // 3. Add tool.hatch.version.source = "vcs"
     if config.enable_dynamic_version {
         if doc.get("tool").is_none() {
-            doc.insert("tool", toml_edit::value(toml_edit::InlineTable::new()));
+            doc.insert("tool", toml_edit::table());
         }
 
         if let Some(tool) = doc.get_mut("tool") {
             if let Some(tool_table) = tool.as_table_mut() {
+                tool_table.set_implicit(true);
                 if tool_table.get("hatch").is_none() {
-                    tool_table.insert("hatch", toml_edit::value(toml_edit::InlineTable::new()));
+                    tool_table.insert("hatch", toml_edit::table());
                 }
 
                 if let Some(hatch) = tool_table.get_mut("hatch") {
                     if let Some(hatch_table) = hatch.as_table_mut() {
+                        hatch_table.set_implicit(true);
                         if hatch_table.get("version").is_none() {
-                            hatch_table
-                                .insert("version", toml_edit::value(toml_edit::InlineTable::new()));
+                            hatch_table.insert("version", toml_edit::table());
                         }
 
                         if let Some(version) = hatch_table.get_mut("version") {
                             if let Some(version_table) = version.as_table_mut() {
+                                version_table.set_implicit(true);
                                 version_table.insert("source", toml_edit::value("vcs"));
                             }
                         }
