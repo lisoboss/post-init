@@ -1,0 +1,29 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-added-large-files
+      - id: check-yaml
+      - id: check-toml
+
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: fmt
+      - id: clippy
+      - id: cargo-check
+
+  - repo: https://github.com/est31/cargo-udeps
+    rev: v0.1.56
+    hooks:
+      - id: udeps
+
+  - repo: local
+    hooks:
+      - id: tests
+        name: tests
+        entry: cargo test
+        language: system
+        pass_filenames: false
