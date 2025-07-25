@@ -21,6 +21,9 @@ pub struct UvinitConfig {
     /// Whether to set dynamic versioning
     #[serde(default = "default_true")]
     pub enable_dynamic_version: bool,
+    /// Whether to set pytest asyncio option
+    #[serde(default = "default_true")]
+    pub enable_pytest_asyncio: bool,
     /// Additional build system requirements
     #[serde(default)]
     pub additional_requires: Vec<String>,
@@ -52,6 +55,7 @@ impl Default for UvinitConfig {
             skip_dirs: default_skip_dirs(),
             add_hatch_vcs: true,
             enable_dynamic_version: true,
+            enable_pytest_asyncio: true,
             additional_requires: Vec::new(),
         }
     }

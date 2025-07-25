@@ -160,6 +160,38 @@ fn modify_pyproject_toml<P: AsRef<Path>>(file_path: P, config: &UvinitConfig) ->
         }
     }
 
+    // 4. Add tool.pytest.ini_options.asyncio_mode = "auto"
+    if config.enable_pytest_asyncio {
+        if doc.get("tool").is_none() {
+            doc.insert("tool", toml_edit::table());
+        }
+
+        if let Some(tool) = doc.get_mut("tool") {
+            if let Some(tool_table) = tool.as_table_mut() {
+                tool_table.set_implicit(true);
+                if tool_table.get("pytest").is_none() {
+                    tool_table.insert("pytest", toml_edit::table());
+                }
+
+                if let Some(pytest) = tool_table.get_mut("pytest") {
+                    if let Some(pytest_table) = pytest.as_table_mut() {
+                        pytest_table.set_implicit(true);
+                        if pytest_table.get("ini_options").is_none() {
+                            pytest_table.insert("ini_options", toml_edit::table());
+                        }
+
+                        if let Some(ini_options) = pytest_table.get_mut("ini_options") {
+                            if let Some(ini_options_table) = ini_options.as_table_mut() {
+                                ini_options_table.set_implicit(true);
+                                ini_options_table.insert("asyncio_mode", toml_edit::value("auto"));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fs::write(file_path, doc.to_string())
         .with_context(|| format!("Failed to write file: {}", file_path.display()))?;
 
@@ -362,6 +394,7 @@ build-backend = "hatchling.build"
         )?;
 
         let config = UvinitConfig {
+            enable_pytest_asyncio: true,
             enable_dynamic_version: true,
             add_hatch_vcs: true,
             additional_requires: vec!["setuptools-scm".to_string()],
@@ -421,6 +454,7 @@ source = "vcs"
         )?;
 
         let config = UvinitConfig {
+            enable_pytest_asyncio: true,
             enable_dynamic_version: true,
             add_hatch_vcs: true,
             additional_requires: vec!["setuptools-scm".to_string()],
@@ -473,6 +507,7 @@ build-backend = "hatchling.build"
         )?;
 
         let config = UvinitConfig {
+            enable_pytest_asyncio: false,
             enable_dynamic_version: false,
             add_hatch_vcs: false,
             additional_requires: vec![],

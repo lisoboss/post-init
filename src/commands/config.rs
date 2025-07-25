@@ -15,7 +15,7 @@ pub fn show_config(show_path: bool) -> Result<()> {
         toml::to_string_pretty(&config).with_context(|| "Failed to serialize config")?;
 
     println!("📄 Current configuration:");
-    println!("{}", config_str);
+    println!("{config_str}");
 
     Ok(())
 }
