@@ -24,6 +24,9 @@ pub struct UvinitConfig {
     /// Whether to set pytest asyncio option
     #[serde(default = "default_true")]
     pub enable_pytest_asyncio: bool,
+    /// Whether to set bandit configuration
+    #[serde(default = "default_true")]
+    pub enable_bandit: bool,
     /// Additional build system requirements
     #[serde(default)]
     pub additional_requires: Vec<String>,
@@ -56,6 +59,7 @@ impl Default for UvinitConfig {
             add_hatch_vcs: true,
             enable_dynamic_version: true,
             enable_pytest_asyncio: true,
+            enable_bandit: true,
             additional_requires: Vec::new(),
         }
     }

@@ -192,6 +192,60 @@ fn modify_pyproject_toml<P: AsRef<Path>>(file_path: P, config: &UvinitConfig) ->
         }
     }
 
+    // 5. Add tool.bandit
+    if config.enable_bandit {
+        if doc.get("tool").is_none() {
+            doc.insert("tool", toml_edit::table());
+        }
+
+        if let Some(tool) = doc.get_mut("tool") {
+            if let Some(tool_table) = tool.as_table_mut() {
+                tool_table.set_implicit(true);
+                if tool_table.get("bandit").is_none() {
+                    tool_table.insert("bandit", toml_edit::table());
+                }
+
+                if let Some(bandit) = tool_table.get_mut("bandit") {
+                    if let Some(bandit_table) = bandit.as_table_mut() {
+                        // Add skips = ["B101"]
+                        let skips_to_add = vec!["B101"];
+                        let skips = bandit_table
+                            .entry("skips")
+                            .or_insert(toml_edit::value(Array::new()));
+
+                        if let Some(skips_array) = skips.as_array_mut() {
+                            for skip in skips_to_add {
+                                let has_skip = skips_array.iter().any(|v| v.as_str() == Some(skip));
+
+                                if !has_skip {
+                                    skips_array.push(skip);
+                                }
+                            }
+                        }
+
+                        // Add exclude_dirs = ["tests", "venv"]
+                        let exclude_dirs_to_add = vec![".venv", "venv", "tests"];
+                        let exclude_dirs = bandit_table
+                            .entry("exclude_dirs")
+                            .or_insert(toml_edit::value(Array::new()));
+
+                        if let Some(exclude_dirs_array) = exclude_dirs.as_array_mut() {
+                            for exclude_dir in exclude_dirs_to_add {
+                                let has_exclude_dir = exclude_dirs_array
+                                    .iter()
+                                    .any(|v| v.as_str() == Some(exclude_dir));
+
+                                if !has_exclude_dir {
+                                    exclude_dirs_array.push(exclude_dir);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fs::write(file_path, doc.to_string())
         .with_context(|| format!("Failed to write file: {}", file_path.display()))?;
 
@@ -394,11 +448,8 @@ build-backend = "hatchling.build"
         )?;
 
         let config = UvinitConfig {
-            enable_pytest_asyncio: true,
-            enable_dynamic_version: true,
-            add_hatch_vcs: true,
             additional_requires: vec!["setuptools-scm".to_string()],
-            skip_dirs: vec![],
+            ..Default::default()
         };
 
         // Modify the file
@@ -406,6 +457,7 @@ build-backend = "hatchling.build"
 
         // Read and verify the modified content
         let modified_content = fs::read_to_string(&test_file)?;
+        println!("Modified content:\n{}", modified_content);
         let doc = modified_content.parse::<DocumentMut>()?;
 
         // Check that version was removed and dynamic was added
@@ -454,11 +506,8 @@ source = "vcs"
         )?;
 
         let config = UvinitConfig {
-            enable_pytest_asyncio: true,
-            enable_dynamic_version: true,
-            add_hatch_vcs: true,
             additional_requires: vec!["setuptools-scm".to_string()],
-            skip_dirs: vec![],
+            ..Default::default()
         };
 
         // Should not modify file that already has dynamic
@@ -507,6 +556,7 @@ build-backend = "hatchling.build"
         )?;
 
         let config = UvinitConfig {
+            enable_bandit: false,
             enable_pytest_asyncio: false,
             enable_dynamic_version: false,
             add_hatch_vcs: false,
